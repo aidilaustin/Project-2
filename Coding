@@ -1,0 +1,157 @@
+//Project2
+//CondigmentProject
+//Aidil
+
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ArduinoJson.h>
+
+const char* ssid = "Hossico";
+const char* password = "44844484";
+
+#define BOTtoken "6366486930:AAGPYhYqD6Auy8jR8Qy5uGKf9T4poNgOJC4"
+#define CHAT_ID "5554080268"
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOTtoken, client);
+
+int botRequestDelay = 1000;
+unsigned long lastTimeBotRan;
+
+const int motionSensor = 14;
+const int led1 = 15;
+const int led2 = 2;
+const int led3 = 4;
+bool motionDetected = false;
+bool ledState = LOW;
+
+int motionStateCurrent  = LOW;
+int motionStatePrevious = LOW;
+
+void ICACHE_RAM_ATTR detectsMovement() {
+  motionDetected = true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  configTime(0, 0, "pool.ntp.org");
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT);
+
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+  digitalWrite(led1, ledState);
+  pinMode(motionSensor, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(motionSensor), detectsMovement, RISING);
+
+  WiFi.mode(WIFI_STA);            
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  delay(1000);                    
+
+  while(WiFi.waitForConnectResult() != WL_CONNECTED){Serial.print(".");}
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("Your Local IP address is: ");
+  Serial.println(WiFi.localIP());   
+
+  bot.sendMessage(CHAT_ID, "Please wait...", "");  
+    delay(500);
+  bot.sendMessage(CHAT_ID, "Process will start in...", "");
+    delay(500);
+  bot.sendMessage(CHAT_ID, "3...", "");
+    delay(500);
+  bot.sendMessage(CHAT_ID, "2...", "");
+    delay(500);
+  bot.sendMessage(CHAT_ID, "1...", "");
+    delay(500);
+  bot.sendMessage(CHAT_ID, "Process Started!", "");
+    delay(500);
+}
+
+void NewMessagesHandle(int NewMessages) {
+  Serial.println("NewMessagesHandle");
+  Serial.println(String(NewMessages));
+
+  for (int i=0; i<NewMessages; i++) {
+    String chat_id = String(bot.messages[i].chat_id);
+    if (chat_id != CHAT_ID){
+      bot.sendMessage(chat_id, "Unauthorized user", "");
+      continue;
+    }
+    
+    String text = bot.messages[i].text;
+    Serial.println(text);
+
+    String from_name = bot.messages[i].from_name;
+
+    if (text == "/help") {
+      String welcome = "Hi, " + from_name + ".\n";
+      welcome += "Please choose to control the Light.\n\n";
+      welcome += "/1 to turn ON Light\n";
+      welcome += "/2 to turn OFF Light\n";
+      welcome += "/status to request current Light Status \n";
+      bot.sendMessage(chat_id, welcome, "");
+    }
+
+    if (text == "/1") {
+      bot.sendMessage(chat_id, "Light is turned ON", "");
+      ledState = HIGH;
+      digitalWrite(led1, ledState);
+      digitalWrite(led2, ledState);
+      digitalWrite(led3, ledState);
+    }
+    
+    if (text == "/2") {
+      bot.sendMessage(chat_id, "Light is turned OFF", "");
+      ledState = LOW;
+      digitalWrite(led1, ledState);
+      digitalWrite(led2, ledState);
+      digitalWrite(led3, ledState);
+    }
+    
+    if (text == "/status") {
+      if (digitalRead(led1)){
+        bot.sendMessage(chat_id, "Light is ON", "");
+      }
+      else{
+        bot.sendMessage(chat_id, "Light is OFF", "");
+      }
+    }
+  }
+}
+
+void loop() {
+  if (millis() > lastTimeBotRan + botRequestDelay)  {
+    int NewMessages = bot.getUpdates(bot.last_message_received + 1);
+
+  while(NewMessages) {
+    Serial.println("Response Received!");
+    NewMessagesHandle(NewMessages);
+    NewMessages = bot.getUpdates(bot.last_message_received + 1);
+  }
+    lastTimeBotRan = millis();
+  }
+  motionStatePrevious = motionStateCurrent;
+  motionStateCurrent  = digitalRead(motionSensor); 
+
+  if (motionStatePrevious == LOW && motionStateCurrent == HIGH) { 
+    Serial.println("Motion detected!, turns LED ON");
+    bot.sendMessage(CHAT_ID, "Motion detected!! Light ON", ""); 
+    digitalWrite(led1, HIGH); 
+      delay(5000);
+    digitalWrite(led2, HIGH);
+      delay(5000);
+    digitalWrite(led3, HIGH);
+      delay(5000);
+  } 
+  else if (motionStatePrevious == HIGH && motionStateCurrent == LOW) { 
+    Serial.println("Motion stopped!, turns LED OFF");
+    digitalWrite(led1, LOW); 
+    digitalWrite(led2, LOW); 
+    digitalWrite(led3, LOW);  
+    bot.sendMessage(CHAT_ID, "NO Motion detected!! Light OFF", "");
+  }
+}
