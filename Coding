@@ -7,11 +7,11 @@
 #include <UniversalTelegramBot.h>
 #include <ArduinoJson.h>
 
-const char* ssid = "Hossico";
-const char* password = "44844484";
+const char* ssid = "-";
+const char* password = "-";
 
-#define BOTtoken "6366486930:AAGPYhYqD6Auy8jR8Qy5uGKf9T4poNgOJC4"
-#define CHAT_ID "5554080268"
+#define BOTtoken "-"
+#define CHAT_ID "-"
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
