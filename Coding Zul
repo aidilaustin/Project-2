@@ -1,0 +1,123 @@
+//ConsignmentProject
+
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ArduinoJson.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+const char* ssid = "Hossico";  //Wifi
+const char* password = "44844484";
+
+#define BOTtoken "6755955627:AAH-yHA0TrMUt7F8pxzXIFiWuTygdA_3Ids"    //Telegram
+#define CHAT_ID "2089557864"
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOTtoken, client);
+
+int botRequestDelay = 500;
+unsigned long lastTimeBotRan;
+
+#define LETTER_SENSOR_PIN 14 // Pin connected to the letter presence sensor
+
+LiquidCrystal_I2C lcd(0x27, 16, 2); // I2C address 0x27 for a 16x2 LCD display
+
+int letterCount = 0;
+
+void setup() {
+  Serial.begin(115200);
+  configTime(0, 0, "pool.ntp.org");
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT);
+
+  lcd.init();
+  lcd.backlight();
+
+  pinMode(LETTER_SENSOR_PIN, INPUT_PULLUP);
+
+  WiFi.mode(WIFI_STA);            
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  delay(1000);                    
+
+  while(WiFi.waitForConnectResult() != WL_CONNECTED){Serial.print(".");}
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("Your Local IP address is: ");
+  Serial.println(WiFi.localIP());   
+
+  bot.sendMessage(CHAT_ID, "Process Started..", "");  
+    delay(500);
+}
+
+void NewMessagesHandle(int NewMessages) {
+
+  for (int i=0; i<NewMessages; i++) {
+    String chat_id = String(bot.messages[i].chat_id);
+    if (chat_id != CHAT_ID){
+      bot.sendMessage(chat_id, "Unauthorized user", "");
+      continue;
+    }
+    
+    String text = bot.messages[i].text;
+    String from_name = bot.messages[i].from_name;
+
+    if (text == "/help") {
+      String message = "Hi, " + from_name + ".\n";
+      message += "Please choose the option below ⬇️⬇️ .\n\n";
+      message += "/1 Total Parcel in the box\n";
+      message += "/2 Reset amount of Parcel in the box\n";
+      bot.sendMessage(chat_id, message, "");
+    }
+    if (text == "/1") {
+      String message = "Total Parcel in the box is: " + String(letterCount) ;
+      bot.sendMessage(CHAT_ID, message, "");
+    }
+    if (text == "/2") {
+    bot.sendMessage(chat_id, "Amount Parcel has been cleared", "");
+    letterCount = 0;
+    lcd.setCursor(0, 1);
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("Parcel Amount: ");
+    lcd.print(letterCount);
+    }
+  }
+}
+
+void loop() {
+  if (millis() > lastTimeBotRan + botRequestDelay)  {
+    int NewMessages = bot.getUpdates(bot.last_message_received + 1);
+
+  while(NewMessages) {
+    NewMessagesHandle(NewMessages);
+    NewMessages = bot.getUpdates(bot.last_message_received + 1);
+  }
+    lastTimeBotRan = millis();
+  }
+
+  lcd.setCursor(0, 0);
+  lcd.print("    BLACK BOX");
+  lcd.setCursor(0, 1);
+  lcd.print("Parcel Amount: ");
+
+  if (digitalRead(LETTER_SENSOR_PIN) == LOW) {
+  letterCount++;
+  String message = "Parcel Detected!!\n";
+  message += "Parcel Amount: " + String(letterCount) ;
+  bot.sendMessage(CHAT_ID, message, "");
+  lcd.setCursor(0, 1);
+  lcd.print("Parcel Amount: ");
+  lcd.print(letterCount);
+
+  if (letterCount >= 10) {
+  letterCount = 0;
+  lcd.setCursor(0, 1);
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print("Parcel Amount: ");
+  lcd.print(letterCount);
+  }
+ }
+}
