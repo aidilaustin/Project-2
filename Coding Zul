@@ -7,11 +7,11 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
-const char* ssid = "Hossico";  //Wifi
-const char* password = "44844484";
+const char* ssid = "-";  //Wifi
+const char* password = "-";
 
-#define BOTtoken "6755955627:AAH-yHA0TrMUt7F8pxzXIFiWuTygdA_3Ids"    //Telegram
-#define CHAT_ID "2089557864"
+#define BOTtoken "-"    //Telegram
+#define CHAT_ID "-"
 
 WiFiClientSecure client;
 UniversalTelegramBot bot(BOTtoken, client);
